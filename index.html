@@ -7569,6 +7569,235 @@ document.addEventListener('DOMContentLoaded', function() {
     // Запускаем загрузку видео
     setTimeout(initVideoLoading, 100);
 });
+
+  // ===== УНИВЕРСАЛЬНАЯ ФУНКЦИЯ ВИБРАЦИИ ДЛЯ IOS И ANDROID =====
+function triggerVibration(duration = 50, pattern = null) {
+    try {
+        // Проверяем поддержку вибрации
+        if (navigator.vibrate) {
+            if (pattern) {
+                navigator.vibrate(pattern);
+            } else {
+                navigator.vibrate(duration);
+            }
+        }
+        
+        // Для iOS через WebApp HapticFeedback
+        if (window.Telegram?.WebApp?.HapticFeedback) {
+            if (duration <= 30) {
+                Telegram.WebApp.HapticFeedback.impactOccurred('light');
+            } else if (duration <= 70) {
+                Telegram.WebApp.HapticFeedback.impactOccurred('medium');
+            } else {
+                Telegram.WebApp.HapticFeedback.impactOccurred('heavy');
+            }
+        }
+        
+        console.log("Вибрация сработала: " + duration + "ms");
+    } catch (e) {
+        console.log('Вибрация не сработала:', e);
+    }
+}
+
+// ===== ВИБРАЦИЯ ДЛЯ ВСЕХ КНОПОК =====
+document.addEventListener('DOMContentLoaded', function() {
+    // Добавляем вибрацию для всех кнопок
+    setTimeout(function() {
+        const allButtons = document.querySelectorAll('button, .game-button, .nav-item, .tab-item, .treasure-btn, .career-button, .quantity-btn, .add-to-cart-btn, .payment-btn, .review-submit-btn, .segment-btn, .filter-btn, .category-item');
+        
+        allButtons.forEach(button => {
+            // Сохраняем оригинальные обработчики
+            const originalOnClick = button.onclick;
+            const originalHref = button.href;
+            
+            // Добавляем вибрацию к клику
+            button.addEventListener('click', function(e) {
+                // Вибрация для разных типов кнопок
+                if (this.classList.contains('nav-item')) {
+                    triggerVibration(40); // Навигация - легкая вибрация
+                } else if (this.classList.contains('game-button') || this.classList.contains('add-to-cart-btn')) {
+                    triggerVibration(60); // Основные действия - средняя вибрация
+                } else if (this.classList.contains('payment-btn') || this.classList.contains('review-submit-btn')) {
+                    triggerVibration(80); // Важные действия - сильная вибрация
+                } else {
+                    triggerVibration(50); // Остальные кнопки - стандартная
+                }
+                
+                // Для ссылок разрешаем переход после вибрации
+                if (originalHref && this.tagName === 'A') {
+                    e.preventDefault();
+                    setTimeout(() => {
+                        window.location.href = originalHref;
+                    }, 100);
+                }
+            });
+            
+            // Сохраняем оригинальный обработчик
+            if (originalOnClick) {
+                button.onclick = function(e) {
+                    triggerVibration(50);
+                    return originalOnClick.call(this, e);
+                };
+            }
+        });
+        
+        console.log("Вибрация добавлена для " + allButtons.length + " кнопок");
+    }, 1000);
+});
+
+// ===== ВИБРАЦИЯ ДЛЯ СВАЙПОВ =====
+(function() {
+    const SWIPE_THRESHOLD = 24;
+    let startX = 0, startY = 0;
+    let isSwiping = false;
+
+    document.addEventListener("touchstart", (e) => {
+        const t = e.touches[0];
+        startX = t.clientX;
+        startY = t.clientY;
+        isSwiping = true;
+    }, { passive: true });
+
+    document.addEventListener("touchmove", (e) => {
+        if (!isSwiping) return;
+
+        const x = e.touches[0].clientX;
+        const y = e.touches[0].clientY;
+        const dx = x - startX;
+        const dy = y - startY;
+
+        // Вибрация при начале свайпа
+        if (Math.abs(dx) > SWIPE_THRESHOLD || Math.abs(dy) > SWIPE_THRESHOLD) {
+            triggerVibration(30);
+            isSwiping = false; // Предотвращаем повторную вибрацию
+        }
+    }, { passive: true });
+
+    document.addEventListener("touchend", (e) => {
+        if (!isSwiping) return;
+        isSwiping = false;
+        
+        const dx = e.changedTouches[0].clientX - startX;
+        const dy = e.changedTouches[0].clientY - startY;
+        
+        // Вибрация при завершении свайпа
+        if (Math.abs(dx) > SWIPE_THRESHOLD || Math.abs(dy) > SWIPE_THRESHOLD) {
+            triggerVibration(40);
+        }
+    }, { passive: true });
+})();
+
+// ===== ВИБРАЦИЯ ДЛЯ СПЕЦИФИЧЕСКИХ ДЕЙСТВИЙ =====
+// Переопределяем существующие функции для добавления вибрации
+
+// 1. Вибрация для навигации
+const originalShowPage = window.showPage;
+window.showPage = function(pageElement) {
+    triggerVibration(40);
+    return originalShowPage ? originalShowPage(pageElement) : null;
+};
+
+// 2. Вибрация для пополнения баланса
+const originalShowPaymentPage = window.showPaymentPage;
+window.showPaymentPage = function() {
+    triggerVibration(60);
+    return originalShowPaymentPage ? originalShowPaymentPage() : null;
+};
+
+// 3. Вибрация для открытия попапов
+const originalOpenCareerPopup = window.openCareerPopup;
+window.openCareerPopup = function(level) {
+    triggerVibration(50);
+    return originalOpenCareerPopup ? originalOpenCareerPopup(level) : null;
+};
+
+// 4. Вибрация для добавления в корзину
+const originalAddToCart = window.addToCart;
+window.addToCart = function(productId) {
+    triggerVibration(60);
+    return originalAddToCart ? originalAddToCart(productId) : null;
+};
+
+// 5. Вибрация для изменений количества
+const originalChangeQuantity = window.changeQuantity;
+window.changeQuantity = function(productId, change) {
+    triggerVibration(40);
+    return originalChangeQuantity ? originalChangeQuantity(productId, change) : null;
+};
+
+// 6. Вибрация для отправки отзывов
+const originalSubmitReview = window.submitReview;
+window.submitReview = function() {
+    triggerVibration(70);
+    return originalSubmitReview ? originalSubmitReview() : null;
+};
+
+// 7. Вибрация для переключения табов
+const tabItems = document.querySelectorAll('.tab-item');
+tabItems.forEach(tab => {
+    tab.addEventListener('click', function() {
+        triggerVibration(40);
+    });
+});
+
+// 8. Вибрация для карточек в карусели
+const carouselCards = document.querySelectorAll('.card');
+carouselCards.forEach(card => {
+    card.addEventListener('click', function() {
+        triggerVibration(50);
+    });
+});
+
+// 9. Вибрация для элементов навигации
+const navItems = document.querySelectorAll('.nav-item');
+navItems.forEach(navItem => {
+    navItem.addEventListener('click', function() {
+        triggerVibration(45);
+    });
+});
+
+// 10. Вибрация для кнопок в каюте
+const cabinetButtons = document.querySelectorAll('.cabinet-page button, .career-button');
+cabinetButtons.forEach(button => {
+    button.addEventListener('click', function() {
+        triggerVibration(55);
+    });
+});
+
+// ===== ВИБРАЦИЯ ДЛЯ СИСТЕМНЫХ СОБЫТИЙ =====
+// Вибрация при успешных операциях
+const originalShowToast = window.showToast;
+window.showToast = function(message) {
+    if (message.includes('успешно') || message.includes('добавлен') || message.includes('сохранено')) {
+        triggerVibration(60);
+    }
+    return originalShowToast ? originalShowToast(message) : null;
+};
+
+// Вибрация при ошибках
+window.showError = function(message) {
+    triggerVibration([100, 50, 100]); // Паттерн для ошибок
+    console.error(message);
+};
+
+// ===== ИНИЦИАЛИЗАЦИЯ ВИБРАЦИИ ПРИ ЗАГРУЗКЕ =====
+document.addEventListener('DOMContentLoaded', function() {
+    // Легкая вибрация при полной загрузке приложения
+    setTimeout(() => {
+        triggerVibration(30);
+    }, 2000);
+    
+    console.log("Система вибрации инициализирована");
+});
+
+// ===== СОХРАНЕНИЕ ОРИГИНАЛЬНЫХ ФУНКЦИЙ =====
+// Сохраняем оригинальную функцию вибрации если она существует
+if (typeof originalTriggerVibration === 'undefined') {
+    window.originalTriggerVibration = window.triggerVibration;
+}
+
+// Переопределяем глобальную функцию вибрации
+window.triggerVibration = triggerVibration;
 </script>
 
 <script>
